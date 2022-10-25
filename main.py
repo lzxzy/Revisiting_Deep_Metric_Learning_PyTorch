@@ -1,6 +1,7 @@
 """==================================================================================================="""
 ################### LIBRARIES ###################
 ### Basic Libraries
+from ast import mod
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -14,7 +15,7 @@ from tqdm import tqdm
 
 import parameters    as par
 
-
+import pdb
 """==================================================================================================="""
 ################### INPUT ARGUMENTS ###################
 parser = argparse.ArgumentParser()
@@ -28,7 +29,7 @@ parser = par.wandb_parameters(parser)
 ##### Read in parameters
 opt = parser.parse_args()
 
-
+# pdb.set_trace()
 """==================================================================================================="""
 ### The following setting is useful when logging to wandb and running multiple seeds per setup:
 ### By setting the savename to <group_plus_seed>, the savename will instead comprise the group and the seed!
@@ -62,7 +63,7 @@ import batchminer    as bmine
 import evaluation    as eval
 from utilities import misc
 from utilities import logger
-
+from embedding.mog_vae import MoG_VAE
 
 
 """==================================================================================================="""
@@ -97,10 +98,13 @@ torch.manual_seed(opt.seed); torch.cuda.manual_seed(opt.seed); torch.cuda.manual
 
 
 
+# pdb.set_trace()
 """==================================================================================================="""
 ##################### NETWORK SETUP ##################
 opt.device = torch.device('cuda')
 model      = archs.select(opt.arch, opt)
+
+model_vae = MoG_VAE()
 
 if opt.fc_lr<0:
     to_optim   = [{'params':model.parameters(),'lr':opt.lr,'weight_decay':opt.decay}]
@@ -110,7 +114,7 @@ else:
     to_optim          = [{'params':all_but_fc_params,'lr':opt.lr,'weight_decay':opt.decay},
                          {'params':fc_params,'lr':opt.fc_lr,'weight_decay':opt.decay}]
 
-_  = model.to(opt.device)
+_, _  = model.to(opt.device), model_vae.to(opt.device)
 
 
 
@@ -225,7 +229,7 @@ for epoch in range(opt.n_epochs):
     loss_collect = []
     data_iterator = tqdm(dataloaders['training'], desc='Epoch {} Training...'.format(epoch))
 
-
+    pdb.set_trace()
     for i,out in enumerate(data_iterator):
         class_labels, input, input_indices = out
 
@@ -235,8 +239,11 @@ for epoch in range(opt.n_epochs):
         # Needed for MixManifold settings.
         if 'mix' in opt.arch: model_args['labels'] = class_labels
         embeds  = model(**model_args)
+        
         if isinstance(embeds, tuple): embeds, (avg_features, features) = embeds
-
+        pdb.set_trace()
+        prob_embed, mean, log_var = model_vae(avg_features)
+        
         ### Compute Loss
         loss_args['batch']          = embeds
         loss_args['labels']         = class_labels

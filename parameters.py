@@ -61,7 +61,7 @@ def basic_training_parameters(parser):
 def wandb_parameters(parser):
     ### Online Logging/Wandb Log Arguments
     parser.add_argument('--log_online',      action='store_true',            help='Flag. If set, run metrics are stored online in addition to offline logging. Should generally be set.')
-    parser.add_argument('--wandb_key',       default='<your_api_key_here>',  type=str,   help='API key for W&B.')
+    parser.add_argument('--wandb_key',       default='d4dcd5d89472e44b2f12617c935df5b715dff825',  type=str,   help='API key for W&B.')
     parser.add_argument('--project',         default='Sample_Project',       type=str,   help='Name of the project - relates to W&B project names. In --savename default setting part of the savename.')
     parser.add_argument('--group',           default='Sample_Group',         type=str,   help='Name of the group - relates to W&B group names - all runs with same setup but different seeds are logged into one group. \
                                                                                                In --savename default setting part of the savename.')
