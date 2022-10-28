@@ -64,6 +64,7 @@ import evaluation    as eval
 from utilities import misc
 from utilities import logger
 from embedding.mog_vae import MoG_VAE
+from distance.wasserstein import wasserstein_dist as w_dist
 
 
 """==================================================================================================="""
@@ -159,6 +160,8 @@ _ = criterion.to(opt.device)
 if 'criterion' in train_data_sampler.name:
     train_data_sampler.internal_criterion = criterion
 
+# probability embed criterion
+# w_dist = wasserstein_dist()
 
 
 
@@ -241,14 +244,19 @@ for epoch in range(opt.n_epochs):
         embeds  = model(**model_args)
         
         if isinstance(embeds, tuple): embeds, (avg_features, features) = embeds
+        
+        # Get probability embeding & calculate wasserstein distance 
         pdb.set_trace()
         prob_embed, mean, log_var = model_vae(avg_features)
+        w_distance = w_dist(mean, log_var)
+        
         
         ### Compute Loss
         loss_args['batch']          = embeds
         loss_args['labels']         = class_labels
         loss_args['f_embed']        = model.model.last_linear
         loss_args['batch_features'] = features
+        loss_args['distance']       = w_distance  # add wasserstein distances
         loss      = criterion(**loss_args)
 
         ###

@@ -2,6 +2,7 @@ import numpy as np
 import torch, torch.nn as nn, torch.nn.functional as F
 import batchminer
 
+import pdb
 
 class BatchMiner():
     def __init__(self, opt):
@@ -13,7 +14,8 @@ class BatchMiner():
     def __call__(self, batch, labels, tar_labels=None, return_distances=False, distances=None):
         if isinstance(labels, torch.Tensor): labels = labels.detach().cpu().numpy()
         bs, dim = batch.shape
-
+        
+        pdb.set_trace()
         if distances is None:
             distances = self.pdist(batch.detach()).clamp(min=self.lower_cutoff)
         sel_d = distances.shape[-1]

@@ -45,7 +45,7 @@ class Decoder(nn.Module):
         self.LeakyReLU = nn.LeakyReLU(0.2)
         
     def forward(self, x):
-        pdb.set_trace()
+        # pdb.set_trace()
         h = self.LeakyReLU(self.FC_hidden(x))
         h = self.LeakyReLU(self.FC_hidden2(h))
         
@@ -67,14 +67,14 @@ class MoG_VAE(nn.Module):
                                output_dim = output_dim)
         
     def reparameterization(self, mean, log_var):
-        pdb.set_trace()
+        # pdb.set_trace()
         epsilon = torch.randn_like(log_var).to(log_var.device)
         z = mean + log_var * epsilon
         return z
     
     def forward(self, x):
         mean, log_var = self.encoder(x)
-        pdb.set_trace()
+        # pdb.set_trace()
         z = self.reparameterization(mean, torch.exp(0.5 * log_var))
         z = rearrange(z, 'b h d -> b (h d)')
         prob_embd = self.decoder(z)
