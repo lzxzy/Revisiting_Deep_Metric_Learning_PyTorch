@@ -2,6 +2,7 @@
 ################### LIBRARIES ###################
 ### Basic Libraries
 from ast import mod
+from audioop import avg
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -64,7 +65,10 @@ import evaluation    as eval
 from utilities import misc
 from utilities import logger
 from embedding.mog_vae import MoG_VAE
+
+# kl divergence & wasserstein distance
 from distance.wasserstein import wasserstein_dist as w_dist
+from criteria.vae import reconstruction_loss, kl_div
 
 
 """==================================================================================================="""
@@ -250,7 +254,6 @@ for epoch in range(opt.n_epochs):
         prob_embed, mean, log_var = model_vae(avg_features)
         w_distance = w_dist(mean, log_var)
         
-        
         ### Compute Loss
         loss_args['batch']          = embeds
         loss_args['labels']         = class_labels
@@ -260,8 +263,21 @@ for epoch in range(opt.n_epochs):
         loss      = criterion(**loss_args)
 
         ###
+
+        ### update whole model Backbone + MoG_VAE + ReID
         optimizer.zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=True)
+        optimizer.step()
+        
+        ### update MoG_VAE model
+        for param in model.features.parameters():
+            param.requires_grad = False
+        recon_loss = reconstruction_loss(avg_features, prob_embed)
+        kl_loss = kl_div(prob_embed, mean, log_var)
+        vae_loss = recon_loss + kl_loss
+        vae_loss.backward()
+        optimizer.step()
+
 
         ### Compute Model Gradients and log them!
         grads              = np.concatenate([p.grad.detach().cpu().numpy().flatten() for p in model.parameters() if p.grad is not None])
@@ -270,7 +286,7 @@ for epoch in range(opt.n_epochs):
         LOG.progress_saver['Model Grad'].log('Grad Max', grad_max, group='Max')
 
         ### Update network weights!
-        optimizer.step()
+        # optimizer.step()
 
         ###
         loss_collect.append(loss.item())
