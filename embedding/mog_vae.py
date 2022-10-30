@@ -67,8 +67,9 @@ class MoG_VAE(nn.Module):
                                output_dim = output_dim)
         
     def reparameterization(self, mean, log_var):
-        # pdb.set_trace()
-        epsilon = torch.randn_like(log_var).to(log_var.device)
+
+        pdb.set_trace()
+        epsilon = torch.randn_like(log_var).to(log_var.device) # z transformation
         z = mean + log_var * epsilon
         return z
     

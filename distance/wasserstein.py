@@ -12,8 +12,10 @@ def wasserstein_dist(mu, log_var):
     dist = reduce(mu_dist**2, 'b n d -> b n', reduction='sum')
     
     avg_var = reduce(log_var, 'b h d -> b h', reduction='mean')
+
     co_var = torch.diag_embed(avg_var)
     co_dist = einops.repeat(co_var, 'b h1 h2 -> b repeat h1 h2', repeat = bs) - co_var
     dist += torch.norm(co_dist, p='fro', dim=(-2, -1))
     dist = torch.sqrt(dist)
     return dist
+
