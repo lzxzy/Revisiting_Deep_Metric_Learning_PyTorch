@@ -4,10 +4,11 @@ import torch
 import torch.nn as nn
 
 from einops import einops, rearrange, repeat, reduce
-
-def reconstruction_loss(real_embeding, recon_embedding):
-    re_loss = nn.MSELoss(real_embeding, recon_embedding)
-    return re_loss
+import pdb
+# def reconstruction_loss(real_embeding, recon_embedding):
+#     pdb.set_trace()
+#     re_loss = nn.(real_embeding, recon_embedding)
+#     return re_loss
 
 def kl_div(prob_embed, mu, log_var):
     std = torch.exp(0.5 * log_var)

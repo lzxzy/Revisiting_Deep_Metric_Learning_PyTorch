@@ -1,3 +1,4 @@
+from tokenize import Triple
 import numpy as np
 import torch, torch.nn as nn, torch.nn.functional as F
 import batchminer
@@ -21,12 +22,14 @@ class Criterion(torch.nn.Module):
         self.REQUIRES_OPTIM      = REQUIRES_OPTIM
 
 
-    def triplet_distance(self, anchor, positive, negative):
-        return torch.nn.functional.relu((anchor-positive).pow(2).sum()-(anchor-negative).pow(2).sum()+self.margin)
+    # def triplet_distance(self, anchor, positive, negative):
+        # return torch.nn.functional.relu((anchor-positive).pow(2).sum()-(anchor-negative).pow(2).sum()+self.margin)
+    def triplet_distance(self, positive_dist, negative_dist):
+        return torch.max(positive_dist-negative_dist+self.margin,  torch.tensor([0.]).to("cuda"))
 
     def forward(self, batch, labels, distance=None, **kwargs):
         if isinstance(labels, torch.Tensor): labels = labels.cpu().numpy()
         sampled_triplets = self.batchminer(batch, labels, distances=distance)
-        loss             = torch.stack([self.triplet_distance(batch[triplet[0],:],batch[triplet[1],:],batch[triplet[2],:]) for triplet in sampled_triplets])
-
-        return torch.mean(loss)
+        # loss             = torch.stack([self.triplet_distance(batch[triplet[0],:],batch[triplet[1],:],batch[triplet[2],:]) for triplet in sampled_triplets])
+        loss = torch.stack([self.triplet_distance(distance[triplet[0],triplet[1]], distance[triplet[0],triplet[2]]) for triplet in sampled_triplets])
+        return torch.sum(loss)

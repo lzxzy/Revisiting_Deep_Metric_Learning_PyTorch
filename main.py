@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 import parameters    as par
-
+from einops import rearrange
 import pdb
 """==================================================================================================="""
 ################### INPUT ARGUMENTS ###################
@@ -68,7 +68,7 @@ from embedding.mog_vae import MoG_VAE
 
 # kl divergence & wasserstein distance
 from distance.wasserstein import wasserstein_dist as w_dist
-from criteria.vae import reconstruction_loss, kl_div
+from criteria.vae import kl_div
 
 
 """==================================================================================================="""
@@ -112,7 +112,9 @@ model      = archs.select(opt.arch, opt)
 model_vae = MoG_VAE()
 
 if opt.fc_lr<0:
-    to_optim   = [{'params':model.parameters(),'lr':opt.lr,'weight_decay':opt.decay}]
+    # to_optim   = [{'params':model.parameters(),'lr':opt.lr,'weight_decay':opt.decay},]
+    to_optim   = [{'params':model.parameters(),'lr':opt.lr,'weight_decay':opt.decay},
+                  {'params':model_vae._parameters(), 'lr':opt.lr,'weight_decay':opt.decay}]
 else:
     all_but_fc_params = [x[-1] for x in list(filter(lambda x: 'last_linear' not in x[0], model.named_parameters()))]
     fc_params         = model.model.last_linear.parameters()
@@ -164,6 +166,8 @@ _ = criterion.to(opt.device)
 if 'criterion' in train_data_sampler.name:
     train_data_sampler.internal_criterion = criterion
 
+
+reconstruction_loss = nn.MSELoss()
 # probability embed criterion
 # w_dist = wasserstein_dist()
 
@@ -236,7 +240,7 @@ for epoch in range(opt.n_epochs):
     loss_collect = []
     data_iterator = tqdm(dataloaders['training'], desc='Epoch {} Training...'.format(epoch))
 
-    pdb.set_trace()
+    # pdb.set_trace()
     for i,out in enumerate(data_iterator):
         class_labels, input, input_indices = out
 
@@ -250,8 +254,8 @@ for epoch in range(opt.n_epochs):
         if isinstance(embeds, tuple): embeds, (avg_features, features) = embeds
         
         # Get probability embeding & calculate wasserstein distance 
-        pdb.set_trace()
-        prob_embed, mean, log_var = model_vae(avg_features)
+        # pdb.set_trace()
+        prob_embed, resample_embed, mean, log_var = model_vae(avg_features)
         w_distance = w_dist(mean, log_var)
         
         ### Compute Loss
@@ -263,20 +267,22 @@ for epoch in range(opt.n_epochs):
         loss      = criterion(**loss_args)
 
         ###
-
+        pdb.set_trace()
         ### update whole model Backbone + MoG_VAE + ReID
         optimizer.zero_grad()
         loss.backward(retain_graph=True)
-        optimizer.step()
+        # optimizer.step()
         
         ### update MoG_VAE model
-        for param in model.features.parameters():
-            param.requires_grad = False
+        # pdb.set_trace()
+        # for param in model.parameters():
+        #     param.requires_grad = False
         recon_loss = reconstruction_loss(avg_features, prob_embed)
-        kl_loss = kl_div(prob_embed, mean, log_var)
-        vae_loss = recon_loss + kl_loss
-        vae_loss.backward()
-        optimizer.step()
+        recon_loss.backward(retain_graph=True)
+        kl_loss = kl_div(rearrange(resample_embed,'b (h d) -> b h d', h=32), mean, log_var)
+        kl_loss.backward()
+        # vae_loss.backward()
+        # optimizer.step()
 
 
         ### Compute Model Gradients and log them!
@@ -286,7 +292,7 @@ for epoch in range(opt.n_epochs):
         LOG.progress_saver['Model Grad'].log('Grad Max', grad_max, group='Max')
 
         ### Update network weights!
-        # optimizer.step()
+        optimizer.step()
 
         ###
         loss_collect.append(loss.item())

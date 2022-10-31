@@ -15,7 +15,7 @@ class BatchMiner():
         if isinstance(labels, torch.Tensor): labels = labels.detach().cpu().numpy()
         bs, dim = batch.shape
         
-        # pdb.set_trace()
+        pdb.set_trace()
         if distances is None:
             distances = self.pdist(batch.detach()).clamp(min=self.lower_cutoff)
         sel_d = distances.shape[-1]
@@ -28,17 +28,15 @@ class BatchMiner():
 
         for i in range(bs):
             neg = tar_labels!=labels[i]; pos = tar_labels==labels[i]
-            # pos_new = np.delete(pos, i)
-            # pdb.set_trace()
+
             anchors.append(i)
-            # q_d_inv = self.inverse_sphere_distances(dim, bs, distances[i], tar_labels, labels[i])
-            # negatives.append(np.random.choice(sel_d,p=q_d_inv))
-            negatives.append(int(distances[i][np.where(neg)].argmax().detach().cpu()))
+            q_d_inv = self.inverse_sphere_distances(dim, bs, distances[i], tar_labels, labels[i])
+            negatives.append(np.random.choice(sel_d,p=q_d_inv))
+
             if np.sum(pos)>0:
                 #Sample positives randomly
                 if np.sum(pos)>1: pos[i] = 0
                 positives.append(np.random.choice(np.where(pos)[0]))
-                # positives.append(int(distances[i][np.where(pos_new)].argmin().argmax().detach().cpu()))
                 #Sample negatives by distance
 
         sampled_triplets = [[a,p,n] for a,p,n in zip(anchors, positives, negatives)]
@@ -51,7 +49,7 @@ class BatchMiner():
 
     def inverse_sphere_distances(self, dim, bs, anchor_to_all_dists, labels, anchor_label):
             dists  = anchor_to_all_dists
-            dim=32
+
             #negated log-distribution of distances of unit sphere in dimension <dim>
             log_q_d_inv = ((2.0 - float(dim)) * torch.log(dists) - (float(dim-3) / 2) * torch.log(1.0 - 0.25 * (dists.pow(2))))
             log_q_d_inv[np.where(labels==anchor_label)[0]] = 0

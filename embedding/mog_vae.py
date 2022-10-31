@@ -68,7 +68,7 @@ class MoG_VAE(nn.Module):
         
     def reparameterization(self, mean, log_var):
 
-        pdb.set_trace()
+        # pdb.set_trace()
         epsilon = torch.randn_like(log_var).to(log_var.device) # z transformation
         z = mean + log_var * epsilon
         return z
@@ -79,4 +79,4 @@ class MoG_VAE(nn.Module):
         z = self.reparameterization(mean, torch.exp(0.5 * log_var))
         z = rearrange(z, 'b h d -> b (h d)')
         prob_embd = self.decoder(z)
-        return prob_embd, mean, log_var
+        return prob_embd, z, mean, log_var
