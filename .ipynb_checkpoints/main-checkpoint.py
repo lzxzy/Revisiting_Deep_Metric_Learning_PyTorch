@@ -4,11 +4,6 @@
 from ast import mod
 from audioop import avg
 import warnings
-from xmlrpc.client import TRANSPORT_ERROR
-
-# from sqlalchemy import true
-
-from criteria import vae
 warnings.filterwarnings("ignore")
 
 import os, sys, numpy as np, argparse, imp, datetime, pandas as pd, copy
@@ -73,7 +68,7 @@ from embedding.mog_vae import MoG_VAE
 
 # kl divergence & wasserstein distance
 from distance.wasserstein import wasserstein_dist as w_dist
-from criteria.vae import log_dist
+from criteria.vae import kl_div
 
 
 """==================================================================================================="""
@@ -118,7 +113,7 @@ model_vae = MoG_VAE()
 # pdb.set_trace()
 if opt.fc_lr<0:
     # to_optim   = [{'params':model.parameters(),'lr':opt.lr,'weight_decay':opt.decay},]
-    to_optim   = [{'params':list(model.parameters())+list(model_vae.parameters()),'lr':opt.lr,'weight_decay':opt.decay}]
+    to_optim   = [{'params':model.parameters(),'lr':opt.lr,'weight_decay':opt.decay}]
     to_optim2  = [{'params':model_vae.parameters(), 'lr':0.0002, 'weight_decay':opt.decay}]
 else:
     all_but_fc_params = [x[-1] for x in list(filter(lambda x: 'last_linear' not in x[0], model.named_parameters()))]
@@ -173,7 +168,6 @@ if 'criterion' in train_data_sampler.name:
 
 
 reconstruction_loss = nn.MSELoss()
-KLD_Loss = nn.KLDivLoss(reduction='batchmean', log_target=True)
 # probability embed criterion
 # w_dist = wasserstein_dist()
 
@@ -246,7 +240,6 @@ for epoch in range(opt.n_epochs):
 
 
     loss_collect = []
-    vae_loss_collect = []
     data_iterator = tqdm(dataloaders['training'], desc='Epoch {} Training...'.format(epoch))
 
     # pdb.set_trace()
@@ -258,27 +251,12 @@ for epoch in range(opt.n_epochs):
         model_args = {'x':input.to(opt.device)}
         # Needed for MixManifold settings.
         if 'mix' in opt.arch: model_args['labels'] = class_labels
-        # pdb.set_trace()
-        
-        ######################################### train ReID ###########################################
         embeds  = model(**model_args)
-        if isinstance(embeds, tuple): embeds, (avg_features, log_prob_enc, features) = embeds
         
-        
-        # pdb.set_trace()
-        prob_embed, resample_embed, mean, log_var = model_vae(avg_features.detach())
-        recon_loss = reconstruction_loss(avg_features.detach(), prob_embed)
-        recon_loss.backward(retain_graph=True)
-        log_qzx, log_pz = log_dist(rearrange(resample_embed,'b (h d) -> b h d', h=32), mean, log_var)
-        kl_loss = KLD_Loss(log_qzx, log_pz)
-        # kl_loss.backward()
-        # vae_loss.backward()
-        vae_loss = recon_loss + kl_loss
-        optimizer2.zero_grad()
-        vae_loss.backward()
-        optimizer2.step()
+        if isinstance(embeds, tuple): embeds, (avg_features, features) = embeds
         
         # Get probability embeding & calculate wasserstein distance 
+        # pdb.set_trace()
         prob_embed, resample_embed, mean, log_var = model_vae(avg_features)
         w_distance = w_dist(mean, log_var)
         
@@ -289,13 +267,26 @@ for epoch in range(opt.n_epochs):
         loss_args['batch_features'] = features
         loss_args['distance']       = w_distance  # add wasserstein distances
         loss      = criterion(**loss_args)
-        
+
+        ###
+        # pdb.set_trace()
+        ### update whole model Backbone + MoG_VAE + ReID
         optimizer.zero_grad()
-        loss.backward()
+        optimizer2.zero_grad()
+        loss.backward(retain_graph=True)
         
+        
+        ### update MoG_VAE model
+        # pdb.set_trace()
+        # for param in model.parameters():
+        #     param.requires_grad = False
+        recon_loss = reconstruction_loss(avg_features, prob_embed)
+        recon_loss.backward(retain_graph=True)
+        kl_loss = kl_div(rearrange(resample_embed,'b (h d) -> b h d', h=32), mean, log_var)
+        kl_loss.backward()
+        # vae_loss.backward()
         optimizer.step()
-        
-        ############################################## Train VAE #################################################
+        optimizer2.step()
 
 
         ### Compute Model Gradients and log them!
@@ -305,21 +296,21 @@ for epoch in range(opt.n_epochs):
         LOG.progress_saver['Model Grad'].log('Grad Max', grad_max, group='Max')
 
         ### Update network weights!
-        # optimizer.step()
+        optimizer.step()
 
         ###
         loss_collect.append(loss.item())
-        vae_loss_collect.append(vae_loss.item())
+
         ###
         iter_count += 1
 
-        if i==len(dataloaders['training'])-1: data_iterator.set_description('Epoch (Train) {0}: Mean Loss [{1:.4f}] Vae_Loss [{1:.4f}]'.format(epoch, np.mean(loss_collect), np.mean(vae_loss_collect)))
+        if i==len(dataloaders['training'])-1: data_iterator.set_description('Epoch (Train) {0}: Mean Loss [{1:.4f}]'.format(epoch, np.mean(loss_collect)))
 
         """======================================="""
         if train_data_sampler.requires_storage and train_data_sampler.update_storage:
             train_data_sampler.replace_storage_entries(embeds.detach().cpu(), input_indices)
 
-    result_metrics = {'loss': np.mean(loss_collect), 'vae_loss': np.mean(vae_loss_collect)}
+    result_metrics = {'loss': np.mean(loss_collect)}
 
     ####
     LOG.progress_saver['Train'].log('epochs', epoch)

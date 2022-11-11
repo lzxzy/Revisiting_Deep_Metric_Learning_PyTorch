@@ -1,11 +1,12 @@
 from datasets.basic_dataset_scaffold import BaseDataset
 import os
 
-import pdb
 
 def Give(opt, datapath):
-    # pdb.set_trace()
-    image_sourcepath  = datapath+'/images'
+    train_images_sourcepath  = datapath+'/bounding_box_train'
+    test_images_sourcepath = datapath+'/bounding_box_test'
+    
+    
     image_classes     = sorted([x for x in os.listdir(image_sourcepath)])
     total_conversion  = {i:x for i,x in enumerate(image_classes)}
     image_list    = {i:sorted([image_sourcepath+'/'+key+'/'+x for x in os.listdir(image_sourcepath+'/'+key)]) for i,key in enumerate(image_classes)}

@@ -34,4 +34,4 @@ class Criterion(torch.nn.Module):
         sampled_triplets = self.batchminer(batch, labels, distances=distance.detach())
         # loss             = torch.stack([self.triplet_distance(batch[triplet[0],:],batch[triplet[1],:],batch[triplet[2],:]) for triplet in sampled_triplets])
         loss = torch.stack([self.triplet_distance(distance[triplet[0],triplet[1]], distance[triplet[0],triplet[2]]) for triplet in sampled_triplets])
-        return torch.mean(loss)
+        return torch.sum(loss)

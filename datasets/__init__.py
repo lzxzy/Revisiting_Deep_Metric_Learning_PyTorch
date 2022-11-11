@@ -1,6 +1,7 @@
 import datasets.cub200
 import datasets.cars196
 import datasets.stanford_online_products
+import datasets.market1501
 
 
 def select(dataset, opt, data_path):
@@ -9,6 +10,9 @@ def select(dataset, opt, data_path):
 
     if 'cars196' in dataset:
         return cars196.Give(opt, data_path)
+    
+    if 'market1501' in dataset:
+        return market1501.Give(opt, data_path)
 
     if 'online_products' in dataset:
         return stanford_online_products.Give(opt, data_path)

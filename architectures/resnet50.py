@@ -3,6 +3,7 @@ The network architectures and weights are adapted and used from the great https:
 """
 import torch, torch.nn as nn
 import pretrainedmodels as ptm
+import torch.nn.functional as F
 
 
 
@@ -44,5 +45,7 @@ class Network(torch.nn.Module):
             x = torch.nn.functional.normalize(x, dim=-1)
         if self.out_adjust and not self.train:
             x = self.out_adjust(x)
+            
+        log_prob_enc = F.log_softmax(enc_out)
 
-        return x, (enc_out, no_avg_feat)
+        return x, (enc_out, log_prob_enc, no_avg_feat)

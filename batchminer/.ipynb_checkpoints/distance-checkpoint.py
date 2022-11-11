@@ -31,9 +31,9 @@ class BatchMiner():
             # pos_new = np.delete(pos, i)
             # pdb.set_trace()
             anchors.append(i)
-            # q_d_inv = self.inverse_sphere_distances(dim, bs, distances[i], tar_labels, labels[i])
-            # negatives.append(np.random.choice(sel_d,p=q_d_inv))
-            negatives.append(int(distances[i][np.where(neg)].argmin().detach().cpu()))
+            q_d_inv = self.inverse_sphere_distances(dim, bs, distances[i], tar_labels, labels[i])
+            negatives.append(np.random.choice(sel_d,p=q_d_inv))
+            # negatives.append(int(distances[i][np.where(neg)].argmin().detach().cpu()))
             if np.sum(pos)>0:
                 #Sample positives randomly
                 if np.sum(pos)>1: pos[i] = 0
